@@ -4,6 +4,7 @@ import pathlib
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 
 import UI_Config as UI
 import DrawingUtility as UTIL
@@ -18,7 +19,9 @@ class DeviceModelling:
     def __init__(self, window):
         self.window = UI.UI_tkinter.MakeWindow(window, 'Device Modelling', fw, fh, False, background='grey94')
         self.__main__()
-        self.InputInfo = self.EntryAddress.copy()
+        self.InputInfo = self.InputEntryAddress.copy()
+        self.DataProcessInfo = self.DataProcessEntryAddress.copy()
+
 
     def Event_ApplyInfo(self, frame, entryadress, ftstyle='Calibri', ftsize=24, tickftsize=10):
 
@@ -37,7 +40,7 @@ class DeviceModelling:
         self.canvas.draw()
         plt.close(plt.gcf())
 
-    def Event_NewFigure(self, inputinfo, ftstyle='Calibri', ftsize=24, tickftsize=10):
+    def Event_NewFigure(self, inputinfo, ftstyle='Calibri', ftsize=24, tickftsize=14):
         fig, self.drawax = plt.subplots(figsize=fs, tight_layout=True)
 
         UTIL.FigureConfig.FigureConfiguration(self.drawax, inputinfo, ftstyle, ftsize, tickftsize)
@@ -53,10 +56,17 @@ class DeviceModelling:
         ax.legend(legendinfo[:], loc='best', fontsize=ftsize)
         plt.pause(0.001)
 
-    def Event_Calculate(self, ax, inputinfo, ftsize=16):
-        VStep, dStep, N, mt, alpha = float(inputinfo['xStep']), float(inputinfo['yStep']), int(inputinfo['N']), float(inputinfo['mutau']), float(inputinfo['abscoeff'])
+    def Event_Calculate(self, ax, inputinfo, dataprocessaddress, ftsize=16):
+
+        ### Update DataProcess Info
+        for key in dataprocessaddress:
+            self.DataProcessInfo[key] = UTIL.DataProcessing.GetEntry(dataprocessaddress[key])
+
+
+        VStep, dStep, N, mt, alpha = float(self.DataProcessInfo['xStep']), float(self.DataProcessInfo['yStep']), int(self.DataProcessInfo['N']), float(self.DataProcessInfo['mutau']), float(self.DataProcessInfo['abscoeff'])
         colorstyle = mpl.colormaps[inputinfo['CMapTitleLd_0']]
         vmin, vmax = float(inputinfo['CMap Range_0']), float(inputinfo['CMap Range_1'])
+
         V = np.arange(ax.get_xlim()[0], ax.get_xlim()[1] + VStep, VStep)
         d = UTIL.DataProcessing.um2cm(np.arange(ax.get_ylim()[0], ax.get_ylim()[1] + dStep, dStep))
 
@@ -70,8 +80,15 @@ class DeviceModelling:
         if bool(inputinfo['CMapTitleLd_2']) == True:
             UTIL.DataProcessing.drawSchubweg(ax, V, mt)
 
+        UTIL.FigureConfig.forceAspect(ax, inputinfo['xScale'], inputinfo['yScale'], aspect=1)
+
         plt.pause(0.001)
         plt.show()
+
+        df = pd.DataFrame(data)
+        df.to_clipboard(excel=True)
+
+        asdf = 1
 
 
     def __main__(self):
@@ -92,19 +109,19 @@ class DeviceModelling:
         EntryInfos = {'Title': 'Title', 'xAxisTitle': "Applied Bias, V [V]", 'yAxisTitle': "Thickness, d [\u03BCm]",
                       'xLim': (0, 1), 'yLim': (0, 1), 'MajorTickXY': (1, 1), 'CMap Range': (0, 1), 'CMapTitleLd': ('RdBu_r', 'Intensity [a.u.]', True)}
 
-        self.EntryAddress = {}
+        self.InputEntryAddress = {}
 
         for k, key in enumerate(EntryInfos):
             if type(EntryInfos[key]) is tuple:
                 n = EntryInfos[key].__len__()
                 for t1, tt in enumerate(EntryInfos[key]):
-                    self.EntryAddress[key + f'_{t1}'] = UI.UI_tkinter.UI_InputEntry(self.InputInfoFrame, tt, row=k, col=1+t1, width=6)
+                    self.InputEntryAddress[key + f'_{t1}'] = UI.UI_tkinter.UI_InputEntry(self.InputInfoFrame, tt, row=k, col=1+t1, width=6)
             else:
-                self.EntryAddress[key] = UI.UI_tkinter.UI_InputEntry(self.InputInfoFrame, EntryInfos[key], row=k, col=1, colspan=colspan, width=24)
+                self.InputEntryAddress[key] = UI.UI_tkinter.UI_InputEntry(self.InputInfoFrame, EntryInfos[key], row=k, col=1, colspan=colspan, width=24)
 
         CBoxInfos = {'xScale': ["Linear", "SymLog"], 'yScale': ["Linear", "SymLog"], 'Grid': ["Grid ON", "Grid Off"]}
         for k, key in enumerate(CBoxInfos):
-            self.EntryAddress[key] = UI.UI_tkinter.UI_CBox(self.InputInfoFrame, CBoxInfos[key], row=k+3, col=3, width=6, padx=1, pady=1, ftsize=8)
+            self.InputEntryAddress[key] = UI.UI_tkinter.UI_CBox(self.InputInfoFrame, CBoxInfos[key], row=k+3, col=3, width=6, padx=1, pady=1, ftsize=8)
 
         colspan += 1
 
@@ -125,15 +142,18 @@ class DeviceModelling:
 
         ### Data Processing UI
         colspan = 0
-        LabelInfos = ["x Step", "y Step", 'N', "\u03BC\u03C4 [cm\u207b\u00B9]", "\u03B1 [cm\u00b2V\u207b\u00B9s\u207b\u00B9]"]
+        LabelInfos = ["x Step", "y Step", 'N', "\u03BC\u03C4 [cm\u00b2V\u207b\u00B9]", "\u03B1 [cm\u207b\u00B9]"]
 
         colspan += 1
         for n, t in enumerate(LabelInfos):
             UI.UI_tkinter.UI_Labels(self.DataProcessFrame, t=t, row=n)
 
         EntryInfos = {'xStep': 1, 'yStep': 1, 'N': 1000, 'mutau': 1E-7, 'abscoeff': 476}
+
+        self.DataProcessEntryAddress = {}
+
         for k, key in enumerate(EntryInfos):
-                self.EntryAddress[key] = UI.UI_tkinter.UI_InputEntry(self.DataProcessFrame, EntryInfos[key], row=k, col=1, colspan=colspan, width=10)
+                self.DataProcessEntryAddress[key] = UI.UI_tkinter.UI_InputEntry(self.DataProcessFrame, EntryInfos[key], row=k, col=1, colspan=colspan, width=10)
 
         colspan += 1
         ButtonInfos = ["Calculate"]
@@ -142,9 +162,9 @@ class DeviceModelling:
 
 
         ### Designate Button Callback Function
-        self.ButtonAddress['ApplyInfo'].configure(command=lambda: self.Event_ApplyInfo(self.OutputPlotFrame, self.EntryAddress))
+        self.ButtonAddress['ApplyInfo'].configure(command=lambda: self.Event_ApplyInfo(self.OutputPlotFrame, self.InputEntryAddress))
         self.ButtonAddress['New Figure'].configure(command=lambda: self.Event_NewFigure(self.InputInfo.copy()))
-        self.ButtonAddress['Calculate'].configure(command=lambda: self.Event_Calculate(self.drawax, self.InputInfo.copy()))
+        self.ButtonAddress['Calculate'].configure(command=lambda: self.Event_Calculate(self.drawax, self.InputInfo.copy(), self.DataProcessEntryAddress))
 
 if __name__ == '__main__':
     window = Tk()
