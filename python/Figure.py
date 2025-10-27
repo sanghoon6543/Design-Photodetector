@@ -4,6 +4,7 @@ import pathlib
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 
 import UI_Config as UI
 import DrawingUtility as UTIL
@@ -63,6 +64,7 @@ class DeviceModelling:
         VStep, dStep, N, mt, alpha = float(self.DataProcessInfo['xStep']), float(self.DataProcessInfo['yStep']), int(self.DataProcessInfo['N']), float(self.DataProcessInfo['mutau']), float(self.DataProcessInfo['abscoeff'])
         colorstyle = mpl.colormaps[inputinfo['CMapTitleLd_0']]
         vmin, vmax = float(inputinfo['CMap Range_0']), float(inputinfo['CMap Range_1'])
+
         V = np.arange(ax.get_xlim()[0], ax.get_xlim()[1] + VStep, VStep)
         d = UTIL.DataProcessing.um2cm(np.arange(ax.get_ylim()[0], ax.get_ylim()[1] + dStep, dStep))
 
@@ -74,14 +76,18 @@ class DeviceModelling:
         ax.cbar = ax.get_figure().colorbar(c, ax=ax)
         ax.cbar.set_label(label=inputinfo['CMapTitleLd_1'], size=ftsize)
         ax.cbar.ax.tick_params(labelsize=ftsize)
-        UTIL.FigureConfig.forceAspect(ax, inputinfo['xScale'], inputinfo['yScale'], aspect=1)
-
 
         if bool(inputinfo['CMapTitleLd_2']) == True:
             UTIL.DataProcessing.drawSchubweg(ax, V, mt)
 
+        UTIL.FigureConfig.forceAspect(ax, inputinfo['xScale'], inputinfo['yScale'], aspect=1)
+
         plt.pause(0.001)
         plt.show()
+
+        df = pd.DataFrame(data)
+        df.to_clipboard(excel=True)
+
 
 
     def __main__(self):
